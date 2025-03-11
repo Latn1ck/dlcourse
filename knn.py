@@ -32,7 +32,7 @@ class KNN:
         else:
             dists = self.compute_distances_two_loops(X)
 
-        if self.train_y.dtype == np.bool:
+        if self.train_y.dtype == bool:
             return self.predict_labels_binary(dists)
         else:
             return self.predict_labels_multiclass(dists)
@@ -107,13 +107,13 @@ class KNN:
            for every test sample
         '''
         num_test = dists.shape[0]
-        pred = np.zeros(num_test, np.bool)
+        pred = np.zeros(num_test, bool)
         for i in range(num_test):
             # TODO: Implement choosing best class based on k
             # nearest training samples
-            t=np.sort(dists[i])[:self.k]
-            
-            pass
+            indices=np.argsort(dists[i])[:self.k] #индексы k ближайших соседей
+            neighbours=self.train_y[indices] #сами соседи
+            pred[i]=(2*np.sum(neighbours) >= self.k)
         return pred
 
     def predict_labels_multiclass(self, dists):
