@@ -112,7 +112,7 @@ class KNN:
             # TODO: Implement choosing best class based on k
             # nearest training samples
             indices=np.argsort(dists[i])[:self.k] #индексы k ближайших соседей
-            neighbours=self.train_y[indices] #сами соседи
+            neighbours=self.train_y[indices] #метки
             pred[i]=(2*np.sum(neighbours) >= self.k)
         return pred
 

@@ -13,12 +13,12 @@ def binary_classification_metrics(prediction, ground_truth):
     precision, recall, f1, accuracy - classification metrics
     '''
     accuracy=np.sum(prediction==ground_truth)/len(prediction)
-    tp=np.sum(ground_truth & prediction)
-    fn=np.sum((prediction==False) & ground_truth)
-    fp=np.sum((ground_truth==False) & prediction)
-    precision=tp/(tp+fp)
-    recall=tp/(tp+fn)
-    f1=(2*precision*recall)/(precision+recall)
+    tp=np.sum((ground_truth==True)&(prediction==True))
+    fp=np.sum((ground_truth==False)&(prediction==True))
+    fn=np.sum((ground_truth==True)&(prediction==False))
+    precision=0 if (tp+fp)<=0 else tp/(tp+fp)
+    recall=0 if (tp+fn)<=0 else tp/(tp+fn)
+    f1=0 if precision+recall==0 else (2*precision*recall)/(precision+recall)
     return precision, recall, f1, accuracy
 
 
