@@ -3,11 +3,7 @@ import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import Dataset
 import os
-import random
-from torchvision import transforms
 import numpy as np
-import matplotlib.pyplot as plt
-from sklearn.decomposition import PCA 
 
 
 class StanfordTreeBank:
@@ -110,12 +106,8 @@ class Word2VecPlain(Dataset):
         # Note you will have several samples from one context
         for i in range(self.num_contexts):
             center_word, context = self.data.get_random_context()
-            
-            # Преобразуем центральное слово и контекстные слова в индексы
             center_word_idx = self.data.index_by_token[center_word]
             context_indices = [self.data.index_by_token[word] for word in context]
-            
-            # Генерируем пары (центральное слово, контекстное слово)
             for context_word_idx in context_indices:
                 self.dataset.append((center_word_idx, context_word_idx))
         
@@ -136,14 +128,17 @@ class Word2VecPlain(Dataset):
         '''
         # TODO: Generate tuple of 2 return arguments for i-th sample
         central_word_idx, context_word_idx = self.dataset[index]
-        
-        # Создаем one-hot представление для центрального слова
         input_vector = torch.zeros(self.num_tokens)
-        input_vector[central_word_idx] = 1  # One-hot encoding
-
-        # Контекстное слово возвращается как индекс
+        input_vector[central_word_idx] = 1
         output_index = context_word_idx
         return input_vector, output_index
+dataset = Word2VecPlain(data, 10)
+dataset.generate_dataset()
+input_vector, target = dataset[3]
+print("Sample - input: %s, target: %s" % (input_vector, int(target))) # target should be able to convert to int
+assert isinstance(input_vector, torch.Tensor)
+assert torch.sum(input_vector) == 1.0
+assert input_vector.shape[0] == data.num_tokens()
 dataset = Word2VecPlain(data, 30000)
 dataset.generate_dataset()
 
@@ -164,78 +159,51 @@ def extract_word_vectors(nn_model):
     input_vectors: torch.Tensor with dimensions (num_tokens, num_dimensions)
     output_vectors: torch.Tensor with dimensions (num_tokens, num_dimensions)
     '''
-    # Извлекаем веса первого и второго слоя
-    input_vectors = nn_model[0].weight.data  # Входные веса, размеры: (num_dimensions, num_tokens)
-    output_vectors = nn_model[1].weight.data  # Выходные веса, размеры: (num_tokens, num_dimensions)
-
-    # Транспонируем input_vectors, чтобы получить размеры (num_tokens, num_dimensions)
-    input_vectors = input_vectors.T  # Теперь: (num_tokens, num_dimensions)
-
+    input_vectors = nn_model[0].weight.data
+    output_vectors = nn_model[1].weight.data
+    input_vectors = input_vectors.T
     return input_vectors, output_vectors
 
 untrained_input_vectors, untrained_output_vectors = extract_word_vectors(nn_model)
+assert untrained_input_vectors.shape == (data.num_tokens(), wordvec_dim)
+assert untrained_output_vectors.shape == (data.num_tokens(), wordvec_dim)
 def train_model(model, dataset, train_loader, optimizer, scheduler, num_epochs):
     '''
     Trains plain word2vec using cross-entropy loss and regenerating dataset every epoch
-    
+
     Returns:
     loss_history, train_history
     '''
-    # Определяем функцию потерь
     criterion = nn.CrossEntropyLoss().type(torch.FloatTensor)
-    
+
     loss_history = []
     train_history = []
-
     for epoch in range(num_epochs):
-        model.train()  # Устанавливаем режим обучения
-        dataset.generate_dataset()  # Обновляем датасет для каждой эпохи
-        
+        model.train()
+        dataset.generate_dataset()
         epoch_loss = 0
         correct_predictions = 0
         total_samples = 0
-
-        for input_vector, target in train_loader:  # Итерируемся по DataLoader
-            # Приводим данные к нужному типу
+        for input_vector, target in train_loader:
             input_vector = input_vector.type(torch.FloatTensor)
             target = target.type(torch.LongTensor)
-
-            # Обнуляем градиенты оптимизатора
             optimizer.zero_grad()
-            
-            # Прямой проход
             outputs = model(input_vector)
-
-            # Функция потерь
             loss = criterion(outputs, target)
             epoch_loss += loss.item()
-            
-            # Обратное распространение ошибки
             loss.backward()
-
-            # Шаг оптимизатора
             optimizer.step()
-
-            # Вычисляем точность (правильные предсказания)
-            _, predictions = torch.max(outputs, 1)
+            i, predictions = torch.max(outputs, 1)
             correct_predictions += (predictions == target).sum().item()
             total_samples += target.size(0)
-        
-        # Шаг изменения скорости обучения
         scheduler.step()
-
-        # Считаем среднюю потерю и точность для эпохи
         ave_loss = epoch_loss / len(train_loader)
         train_accuracy = correct_predictions / total_samples
-
         loss_history.append(ave_loss)
         train_history.append(train_accuracy)
-        
         print("Epoch %i, Average loss: %f, Train accuracy: %f" % (epoch, ave_loss, train_accuracy))
-    
     return loss_history, train_history
-optimizer = optim.SGD(nn_model.parameters(), lr=1, weight_decay=1e-3,momentum=0.8)
-scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=5, gamma=0.1)
+optimizer = optim.SGD(nn_model.parameters(), lr=1, weight_decay=1,momentum=0.8)
+scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.9)
 train_loader = torch.utils.data.DataLoader(dataset, batch_size=20)
-
 loss_history, train_history = train_model(nn_model, dataset, train_loader, optimizer, scheduler, 10)
