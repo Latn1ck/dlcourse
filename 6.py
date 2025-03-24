@@ -7,8 +7,8 @@ import torch.nn.functional as F
 import torch.optim as optim
 from torch import FloatTensor, LongTensor
 import matplotlib.pyplot as plt
-from collections import Counter
-
+import math
+from tqdm import tqdm
 
 np.random.seed(42)
 nltk.download('brown')
@@ -82,17 +82,75 @@ class LSTMTagger(nn.Module):
 model = LSTMTagger(vocab_size=len(word2ind), tagset_size=len(tag2ind))
 X_batch, y_batch = torch.LongTensor(X_batch), torch.LongTensor(y_batch)
 logits = model(X_batch)
+X_batch=torch.Tensor(X_batch)
 predicted = torch.argmax(logits, dim=1)
 predicted_tags = torch.argmax(logits, dim=2)  # Shape: (32, 4)
-
+print(predicted_tags.shape, type(predicted_tags))
 # Compare with ground truth
 correct_predictions = (predicted_tags == y_batch).sum().item()
-
 # Total number of elements
 total_predictions = y_batch.numel()
-
 # Accuracy calculation
 accuracy = correct_predictions / total_predictions
-print(f"Точность: {accuracy:.2%}")  # Результат, например, 100.00%
-criterion = nn.CrossEntropyLoss()
+print(f'Accuracy: {accuracy}')
 #<calc loss>
+print(type(predicted_tags), type(y_batch))
+criterion = nn.CrossEntropyLoss()
+# Вычисляем функцию потерь
+loss = criterion(predicted_tags, y_batch)
+print(f'Значение функции потерь: {loss:.4f}')
+def do_epoch(model, criterion, data, batch_size, optimizer=None, name=None):
+    epoch_loss = 0
+    correct_count = 0
+    sum_count = 0
+    
+    is_train = not optimizer is None
+    name = name or ''
+    model.train(is_train)
+    
+    batches_count = math.ceil(len(data[0]) / batch_size)
+    
+    with torch.autograd.set_grad_enabled(is_train):
+        with tqdm(total=batches_count) as progress_bar:
+            for i, (X_batch, y_batch) in enumerate(iterate_batches(data, batch_size)):
+                X_batch, y_batch = LongTensor(X_batch), LongTensor(y_batch)
+                logits = model(X_batch)
+
+                loss = 0#<calc loss>
+
+                epoch_loss += loss.item()
+
+                if optimizer:
+                    optimizer.zero_grad()
+                    loss.backward()
+                    optimizer.step()
+
+                cur_correct_count, cur_sum_count = 0#<calc accuracy>
+
+                correct_count += cur_correct_count
+                sum_count += cur_sum_count
+
+                progress_bar.update()
+                progress_bar.set_description('{:>5s} Loss = {:.5f}, Accuracy = {:.2%}'.format(
+                    name, loss.item(), cur_correct_count / cur_sum_count)
+                )
+                
+            progress_bar.set_description('{:>5s} Loss = {:.5f}, Accuracy = {:.2%}'.format(
+                name, epoch_loss / batches_count, correct_count / sum_count)
+            )
+
+    return epoch_loss / batches_count, correct_count / sum_count
+
+
+def fit(model, criterion, optimizer, train_data, epochs_count=1, batch_size=32,
+        val_data=None, val_batch_size=None):
+        
+    if not val_data is None and val_batch_size is None:
+        val_batch_size = batch_size
+        
+    for epoch in range(epochs_count):
+        name_prefix = '[{} / {}] '.format(epoch + 1, epochs_count)
+        train_loss, train_acc = do_epoch(model, criterion, train_data, batch_size, optimizer, name_prefix + 'Train:')
+        
+        if not val_data is None:
+            val_loss, val_acc = do_epoch(model, criterion, val_data, val_batch_size, None, name_prefix + '  Val:')
