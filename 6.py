@@ -82,23 +82,14 @@ class LSTMTagger(nn.Module):
 model = LSTMTagger(vocab_size=len(word2ind), tagset_size=len(tag2ind))
 X_batch, y_batch = torch.LongTensor(X_batch), torch.LongTensor(y_batch)
 logits = model(X_batch)
-X_batch=torch.Tensor(X_batch)
-predicted = torch.argmax(logits, dim=1)
-predicted_tags = torch.argmax(logits, dim=2)  # Shape: (32, 4)
-print(predicted_tags.shape, type(predicted_tags))
-# Compare with ground truth
-correct_predictions = (predicted_tags == y_batch).sum().item()
-# Total number of elements
-total_predictions = y_batch.numel()
-# Accuracy calculation
-accuracy = correct_predictions / total_predictions
-print(f'Accuracy: {accuracy}')
+_, predicted = torch.max(logits, dim=2)
+correct = (predicted == y_batch).sum().item()
+accuracy = correct / y_batch.size(0)
+print(f"Accuracy: {accuracy:.2f}")
 #<calc loss>
-print(type(predicted_tags), type(y_batch))
 criterion = nn.CrossEntropyLoss()
-# Вычисляем функцию потерь
-loss = criterion(predicted_tags, y_batch)
-print(f'Значение функции потерь: {loss:.4f}')
+loss = criterion(logits.view(-1, logits.size(-1)), y_batch.view(-1))  # Преобразуем размеры
+print(f"Loss: {loss.item():.4f}")
 def do_epoch(model, criterion, data, batch_size, optimizer=None, name=None):
     epoch_loss = 0
     correct_count = 0
@@ -116,7 +107,7 @@ def do_epoch(model, criterion, data, batch_size, optimizer=None, name=None):
                 X_batch, y_batch = LongTensor(X_batch), LongTensor(y_batch)
                 logits = model(X_batch)
 
-                loss = 0#<calc loss>
+                loss = criterion(logits,y_batch)
 
                 epoch_loss += loss.item()
 
