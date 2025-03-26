@@ -90,7 +90,19 @@ batch_size = 3
 predictions = np.random.randint(-1, 3, size=(batch_size, num_classes)).astype(float)
 target_index = np.random.randint(0, num_classes, size=(batch_size, 1)).astype(int)
 check_gradient(lambda x: linear_classifer.softmax_with_cross_entropy(x, target_index), predictions)
-
 # Make sure maximum subtraction for numberic stability is done separately for every sample in the batch
 probs = linear_classifer.softmax(np.array([[20,0,0], [1000, 0, 0]]))
 assert np.all(np.isclose(probs[:, 0], 1.0))
+
+batch_size = 2
+num_classes = 2
+num_features = 3
+np.random.seed(42)
+W = np.random.randint(-1, 3, size=(num_features, num_classes)).astype(float)
+print(f'W:{W.shape}')
+X = np.random.randint(-1, 3, size=(batch_size, num_features)).astype(float)
+print(f'X:{X.shape}')
+target_index = np.ones(batch_size, dtype=int)
+loss, dW = (linear_classifer.linear_softmax(X, W, target_index))
+print(f'dW:{dW.shape}')
+check_gradient(lambda w: linear_classifer.linear_softmax(X, w, target_index), W)

@@ -15,8 +15,12 @@ def softmax(predictions):
     '''
     # TODO implement softmax
     # Your final implementation shouldn't have any loops
-    predictions-=np.max(predictions)
-    return np.exp(predictions)/np.sum(np.exp(predictions)) if len(predictions.shape)==1 else np.exp(predictions)/np.sum(np.exp(predictions),axis=1)
+    if len(predictions.shape)==1:
+      predictions-=np.max(predictions)
+      return np.exp(predictions)/np.sum(np.exp(predictions))
+    else:
+        predictions-=np.max(predictions,axis=1).reshape(-1,1)
+        return np.exp(predictions)/(np.sum(np.exp(predictions),axis=1).reshape(-1,1))
 
 
 def cross_entropy_loss(probs, target_index):
@@ -38,7 +42,7 @@ def cross_entropy_loss(probs, target_index):
       return -np.log(probs[target_index])
     else:
         pr=np.zeros(probs.shape)
-        pr[target_index,np.array(range(probs.shape[1]))]=1
+        pr[np.array(range(probs.shape[0])),target_index[0]]=1
         return -np.sum(pr*np.log(probs))
 
 
@@ -64,11 +68,12 @@ def softmax_with_cross_entropy(predictions, target_index):
     loss=cross_entropy_loss(softMaxes,target_index)
     if isinstance(target_index,int):
         targets=np.zeros(predictions.shape,float)
-        targets[target_index]=1.0
+        targets[target_index]=1
         dprediction=softMaxes-targets
     else:
       targets=np.zeros(predictions.shape,float)
-      targets[target_index,np.array(range(predictions.shape[1]))]=1.0
+      targets[np.array(range(softMaxes.shape[0])),target_index[0]]=1
+      #targets[target_index,np.array(range(predictions.shape[1]))]=1
       dprediction=softmax(dprediction)-targets
     return loss, dprediction
     
@@ -108,12 +113,12 @@ def linear_softmax(X, W, target_index):
       gradient, np.array same shape as W - gradient of weight by loss
 
     '''
-    predictions = np.dot(X, W)
+    predictions = np.dot(X, W) # shape=(num_batch,classes)
 
     # TODO implement prediction and gradient over W
     # Your final implementation shouldn't have any loops
-    raise Exception("Not implemented!")
-    
+    loss,dW=softmax_with_cross_entropy(predictions,target_index)
+    dW=(X.T).dot(dW.T)
     return loss, dW
 
 
