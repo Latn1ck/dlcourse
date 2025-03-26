@@ -16,11 +16,7 @@ def softmax(predictions):
     # TODO implement softmax
     # Your final implementation shouldn't have any loops
     predictions-=np.max(predictions)
-    if len(predictions.shape)==1:
-        return np.exp(predictions)/np.sum(np.exp(predictions))
-    else:
-        return np.exp(predictions)/np.sum(np.exp(predictions),axis=1)
-    raise Exception("Not implemented!")
+    return np.exp(predictions)/np.sum(np.exp(predictions)) if len(predictions.shape)==1 else np.exp(predictions)/np.sum(np.exp(predictions),axis=1)
 
 
 def cross_entropy_loss(probs, target_index):
@@ -39,10 +35,11 @@ def cross_entropy_loss(probs, target_index):
     # TODO implement cross-entropy
     # Your final implementation shouldn't have any loops
     if isinstance(target_index,int):
-        return -target_index*sum(np.log(probs))
+      return -np.log(probs[target_index])
     else:
-        return -target_index.dot(np.log(probs))
-    raise Exception("Not implemented!")
+        pr=np.zeros(probs.shape)
+        pr[target_index,np.array(range(probs.shape[1]))]=1
+        return -np.sum(pr*np.log(probs))
 
 
 def softmax_with_cross_entropy(predictions, target_index):
@@ -61,10 +58,20 @@ def softmax_with_cross_entropy(predictions, target_index):
       dprediction, np array same shape as predictions - gradient of predictions by loss value
     '''
     # TODO implement softmax with cross-entropy
-    # Your final implementation shouldn't have any loops
-    raise Exception("Not implemented!")
-
+    # Your final implementation shouldn't have any loop
+    dprediction=predictions.copy()
+    softMaxes=softmax(dprediction)
+    loss=cross_entropy_loss(softMaxes,target_index)
+    if isinstance(target_index,int):
+        targets=np.zeros(predictions.shape,float)
+        targets[target_index]=1.0
+        dprediction=softMaxes-targets
+    else:
+      targets=np.zeros(predictions.shape,float)
+      targets[target_index,np.array(range(predictions.shape[1]))]=1.0
+      dprediction=softmax(dprediction)-targets
     return loss, dprediction
+    
 
 
 def l2_regularization(W, reg_strength):
